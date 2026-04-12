@@ -1657,6 +1657,7 @@ class TestRolePermission(SupersetTestCase):
             ["Superset", "welcome"],
             ["SecurityApi", "login"],
             ["SecurityApi", "refresh"],
+            ["SecurityRestApi", "logout"],
             ["SupersetIndexView", "index"],
             ["SupersetIndexView", "patch_flask_locale"],
             ["DatabaseRestApi", "oauth2"],

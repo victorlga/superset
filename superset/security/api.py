@@ -17,12 +17,13 @@
 import logging
 from typing import Any
 
-from flask import current_app, request, Response
+from flask import current_app, g, request, Response, session
 from flask_appbuilder import expose
 from flask_appbuilder.api import rison, safe, SQLAInterface
 from flask_appbuilder.api.schemas import get_list_schema
 from flask_appbuilder.security.decorators import permission_name, protect
 from flask_appbuilder.security.sqla.models import RegisterUser, Role
+from flask_login import logout_user
 from flask_wtf.csrf import generate_csrf
 from marshmallow import EXCLUDE, fields, post_load, Schema, ValidationError
 from sqlalchemy import asc, desc
@@ -105,6 +106,39 @@ class SecurityRestApi(BaseSupersetApi):
     resource_name = "security"
     allow_browser_login = True
     openapi_spec_tag = "Security"
+
+    @expose("/logout/", methods=("POST",))
+    @event_logger.log_this
+    @safe
+    @statsd_metrics
+    def logout(self) -> Response:
+        """Logout the user and invalidate the session.
+        ---
+        post:
+          summary: Logout and invalidate the session
+          description: >
+            Clears all server-side session data and logs the user out,
+            preventing session cookie replay attacks.  API consumers
+            (SPAs, mobile apps) should call this endpoint instead of
+            relying on the browser-redirect logout view.
+          responses:
+            200:
+              description: Successfully logged out
+              content:
+                application/json:
+                  schema:
+                    type: object
+                    properties:
+                        message:
+                          type: string
+            401:
+              $ref: '#/components/responses/401'
+        """
+        user = g.user
+        session.clear()
+        logout_user()
+        self.appbuilder.sm.on_user_logout(user)
+        return self.response(200, message="OK")
 
     @expose("/csrf_token/", methods=("GET",))
     @event_logger.log_this

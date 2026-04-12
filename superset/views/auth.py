@@ -18,12 +18,13 @@
 import logging
 from typing import Optional
 
-from flask import g, redirect
+from flask import g, redirect, session
 from flask_appbuilder import expose
 from flask_appbuilder.const import LOGMSG_ERR_SEC_NO_REGISTER_HASH
 from flask_appbuilder.security.decorators import no_cache
 from flask_appbuilder.security.views import AuthView, WerkzeugResponse
 from flask_babel import lazy_gettext
+from flask_login import logout_user
 
 from superset.views.base import BaseSupersetView
 
@@ -40,6 +41,31 @@ class SupersetAuthView(BaseSupersetView, AuthView):
             return redirect(self.appbuilder.get_url_for_index)
 
         return super().render_app_template()
+
+    @expose("/logout/")
+    @no_cache
+    def logout(self) -> WerkzeugResponse:
+        """Override FAB's logout to invalidate the server-side session.
+
+        The default FAB logout only calls ``logout_user()``, which clears
+        the user identity from the in-flight session dict but does **not**
+        destroy the session itself.  A previously-captured session cookie
+        can therefore be replayed to restore an authenticated session.
+
+        ``session.clear()`` wipes all session data so that:
+        * Client-side cookies: Flask issues a new (empty) signed cookie,
+          making any previously-captured cookie stale.
+        * Server-side sessions: the backend store entry is deleted, so the
+          old session ID no longer maps to any data.
+        """
+        # Capture user reference before logout clears it
+        user = g.user
+        # Clear all session data to prevent cookie replay
+        session.clear()
+        logout_user()
+        # Preserve audit logging
+        self.appbuilder.sm.on_user_logout(user)
+        return redirect(self.appbuilder.get_url_for_index)
 
 
 class SupersetRegisterUserView(BaseSupersetView):
