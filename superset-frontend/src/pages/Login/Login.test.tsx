@@ -26,6 +26,7 @@ const defaultBootstrapData = {
       AUTH_TYPE: 1,
       AUTH_PROVIDERS: [],
       AUTH_USER_REGISTRATION: false,
+      AUTH_USER_SELF_REGISTRATION: false,
     },
     feature_flags: {},
   },
@@ -74,10 +75,43 @@ test('should render SAML provider buttons', () => {
           { name: 'onelogin', icon: 'onelogin' },
         ],
         AUTH_USER_REGISTRATION: false,
+        AUTH_USER_SELF_REGISTRATION: false,
       },
     },
   });
   render(<Login />, { useRedux: true });
   expect(screen.getByText('Sign in with Okta')).toBeInTheDocument();
   expect(screen.getByText('Sign in with Onelogin')).toBeInTheDocument();
+});
+
+test('should hide Register button when AUTH_USER_SELF_REGISTRATION is false', () => {
+  mockGetBootstrapData.mockReturnValue({
+    common: {
+      conf: {
+        AUTH_TYPE: 1,
+        AUTH_PROVIDERS: [],
+        AUTH_USER_REGISTRATION: true,
+        AUTH_USER_SELF_REGISTRATION: false,
+      },
+      feature_flags: {},
+    },
+  });
+  render(<Login />, { useRedux: true });
+  expect(screen.queryByTestId('register-button')).not.toBeInTheDocument();
+});
+
+test('should show Register button when AUTH_USER_SELF_REGISTRATION is true', () => {
+  mockGetBootstrapData.mockReturnValue({
+    common: {
+      conf: {
+        AUTH_TYPE: 1,
+        AUTH_PROVIDERS: [],
+        AUTH_USER_REGISTRATION: true,
+        AUTH_USER_SELF_REGISTRATION: true,
+      },
+      feature_flags: {},
+    },
+  });
+  render(<Login />, { useRedux: true });
+  expect(screen.getByTestId('register-button')).toBeInTheDocument();
 });

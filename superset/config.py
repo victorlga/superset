@@ -395,6 +395,11 @@ AUTH_TYPE = AUTH_DB
 # The default user self registration role
 # AUTH_USER_REGISTRATION_ROLE = "Public"
 
+# Controls whether unauthenticated users can self-register via the /register/ form.
+# This is independent of AUTH_USER_REGISTRATION, which controls provider-side
+# auto-provisioning for LDAP/OAuth/SAML.
+# AUTH_USER_SELF_REGISTRATION = False
+
 # When using LDAP Auth, setup the LDAP server
 # AUTH_LDAP_SERVER = "ldap://ldapserver.new"
 

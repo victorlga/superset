@@ -24,6 +24,14 @@ assists people when migrating to a new version.
 
 ## Next
 
+### New `AUTH_USER_SELF_REGISTRATION` config flag decouples public registration from provider sync
+
+The single boolean `AUTH_USER_REGISTRATION` previously controlled both LDAP/OAuth/SAML provider-side auto-provisioning **and** the public self-registration form at `/register/`. A new config flag `AUTH_USER_SELF_REGISTRATION` (default: `False`) has been introduced to exclusively control whether unauthenticated users can self-register through the UI.
+
+**Breaking change:** Setting `AUTH_USER_REGISTRATION = True` no longer exposes the `/register/` form or the "Register" button on the login page. To restore public self-registration, explicitly set `AUTH_USER_SELF_REGISTRATION = True` in your `superset_config.py`.
+
+`AUTH_USER_REGISTRATION` continues to control provider-side auto-provisioning (creating local DB records when users authenticate via LDAP/OAuth/SAML).
+
 ### Deck.gl MapBox viewport and opacity controls are functional
 
 The Deck.gl MapBox chart's **Opacity**, **Default longitude**, **Default latitude**, and **Zoom** controls were previously non-functional — changing them had no effect on the rendered map. These controls are now wired up correctly.

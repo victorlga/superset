@@ -301,6 +301,11 @@ AUTH_USER_REGISTRATION = True
 
 # The default user self registration role
 AUTH_USER_REGISTRATION_ROLE = "Public"
+
+# Controls whether unauthenticated users can self-register via the /register/ form.
+# This is independent of AUTH_USER_REGISTRATION, which controls provider-side
+# auto-provisioning for LDAP/OAuth/SAML. Defaults to False (secure by default).
+# AUTH_USER_SELF_REGISTRATION = False
 ```
 
 In case you want to assign the `Admin` role on new user registration, it can be assigned as follows:

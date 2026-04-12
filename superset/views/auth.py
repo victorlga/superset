@@ -18,7 +18,7 @@
 import logging
 from typing import Optional
 
-from flask import g, redirect
+from flask import abort, g, redirect
 from flask_appbuilder import expose
 from flask_appbuilder.const import LOGMSG_ERR_SEC_NO_REGISTER_HASH
 from flask_appbuilder.security.decorators import no_cache
@@ -42,6 +42,13 @@ class SupersetAuthView(BaseSupersetView, AuthView):
         return super().render_app_template()
 
 
+def _is_self_registration_enabled() -> bool:
+    """Check whether public self-registration via the UI is enabled."""
+    from flask import current_app
+
+    return bool(current_app.config.get("AUTH_USER_SELF_REGISTRATION", False))
+
+
 class SupersetRegisterUserView(BaseSupersetView):
     route_base = "/register"
     activation_template = ""
@@ -53,6 +60,8 @@ class SupersetRegisterUserView(BaseSupersetView):
     @expose("/")
     @no_cache
     def register(self) -> WerkzeugResponse:
+        if not _is_self_registration_enabled():
+            abort(403)
         return super().render_app_template()
 
     @expose("/activation/<string:activation_hash>")
@@ -62,6 +71,8 @@ class SupersetRegisterUserView(BaseSupersetView):
         is sent to the user by email, when accessed the user is inserted
         and activated
         """
+        if not _is_self_registration_enabled():
+            abort(403)
         reg = self.appbuilder.sm.find_register_user(activation_hash)
         if not reg:
             logger.error(LOGMSG_ERR_SEC_NO_REGISTER_HASH, activation_hash)

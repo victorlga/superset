@@ -345,7 +345,7 @@ if (isFeatureEnabled(FeatureFlag.TaggingSystem)) {
 
 const user = getBootstrapData()?.user;
 const authRegistrationEnabled =
-  getBootstrapData()?.common.conf.AUTH_USER_REGISTRATION;
+  getBootstrapData()?.common.conf.AUTH_USER_SELF_REGISTRATION;
 const isAdmin = isUserAdmin(user);
 
 if (isAdmin) {
