@@ -311,7 +311,6 @@ def query_context_modified(query_context: "QueryContext") -> bool:
         ("metrics", ["metrics"]),
         ("columns", ["columns", "groupby"]),
         ("groupby", ["columns", "groupby"]),
-        ("orderby", ["orderby"]),
     ]:
         requested_values = {freeze_value(value) for value in form_data.get(key) or []}
         stored_values = {
@@ -328,13 +327,74 @@ def query_context_modified(query_context: "QueryContext") -> bool:
         }
         if stored_query_context:
             for query in stored_query_context.get("queries") or []:
-                for key in equivalent:
+                for equiv_key in equivalent:
                     stored_values.update(
-                        {freeze_value(value) for value in query.get(key) or []}
+                        {freeze_value(value) for value in query.get(equiv_key) or []}
                     )
 
         if not queries_values.issubset(stored_values):
             return True
+
+    # Validate orderby separately: allow sorting by columns/metrics already in
+    # the chart rather than requiring an exact subset match against stored
+    # orderby values.  This lets guest users sort table charts without
+    # triggering "Guest user cannot modify chart payload".
+    return _orderby_modified(
+        form_data, stored_chart, stored_query_context, query_context
+    )
+
+
+def _collect_allowed_orderby_targets(
+    stored_chart: Any,
+    stored_query_context: dict[str, Any] | None,
+) -> set[str]:
+    """
+    Build the set of frozen column/metric values that are valid orderby targets.
+
+    Includes all columns and metrics from the chart's ``params_dict`` and, when
+    present, from the stored ``query_context`` queries.
+    """
+    allowed: set[str] = set()
+    for col_key in ("metrics", "columns", "groupby", "all_columns"):
+        for val in stored_chart.params_dict.get(col_key) or []:
+            allowed.add(freeze_value(val))
+
+    if stored_query_context:
+        for query in stored_query_context.get("queries") or []:
+            for col_key in ("metrics", "columns", "groupby"):
+                for val in query.get(col_key) or []:
+                    allowed.add(freeze_value(val))
+
+    return allowed
+
+
+def _orderby_modified(
+    form_data: dict[str, Any],
+    stored_chart: Any,
+    stored_query_context: dict[str, Any] | None,
+    query_context: "QueryContext",
+) -> bool:
+    """
+    Check whether the orderby clause references columns/metrics outside the chart.
+
+    Sorting by columns or metrics already visible in the chart is safe and
+    allowed.  Only orderby entries that reference values *not* present in the
+    chart's columns, groupby, all_columns, or metrics are rejected.
+    """
+    allowed = _collect_allowed_orderby_targets(stored_chart, stored_query_context)
+
+    # check orderby in form_data
+    for item in form_data.get("orderby") or []:
+        metric_or_col = item[0] if isinstance(item, (list, tuple)) else item
+        if freeze_value(metric_or_col) not in allowed:
+            return True
+
+    # check orderby in query_context.queries
+    for query in query_context.queries:
+        for item in getattr(query, "orderby", []) or []:
+            metric_or_col = item[0] if isinstance(item, (list, tuple)) else item
+            if freeze_value(metric_or_col) not in allowed:
+                return True
 
     return False
 

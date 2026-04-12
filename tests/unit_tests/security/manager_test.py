@@ -1045,6 +1045,171 @@ def test_query_context_modified_orderby(mocker: MockerFixture) -> None:
     assert query_context_modified(query_context)
 
 
+def test_query_context_modified_sorting_allowed(mocker: MockerFixture) -> None:
+    """
+    Test that sorting by a column already in the chart is allowed for guest users.
+
+    Regression test for https://github.com/apache/superset/issues/37061
+    """
+    query_context = mocker.MagicMock()
+    query_context.slice_.id = 42
+    query_context.slice_.query_context = None
+    query_context.slice_.params_dict = {
+        "metrics": ["count"],
+        "columns": ["name", "gender"],
+        "groupby": ["name", "gender"],
+    }
+
+    query_context.form_data = {
+        "slice_id": 42,
+        "metrics": ["count"],
+        "columns": ["name", "gender"],
+        "orderby": [["name", True]],
+    }
+    query_context.queries = [
+        QueryObject(
+            metrics=["count"],
+            columns=["name", "gender"],
+            orderby=[("name", True)],
+        ),
+    ]
+    assert not query_context_modified(query_context)
+
+
+def test_query_context_modified_orderby_tampered_column(
+    mocker: MockerFixture,
+) -> None:
+    """
+    Test that sorting by a column NOT in the chart is blocked for guest users.
+    """
+    tampered_metric: AdhocMetric = {
+        "expressionType": "SQL",
+        "sqlExpression": "random()",
+        "label": "random()",
+    }
+    query_context = mocker.MagicMock()
+    query_context.slice_.id = 42
+    query_context.slice_.query_context = None
+    query_context.slice_.params_dict = {
+        "metrics": ["count"],
+        "columns": ["name"],
+    }
+
+    query_context.form_data = {
+        "slice_id": 42,
+        "metrics": ["count"],
+        "columns": ["name"],
+        "orderby": [[tampered_metric, False]],
+    }
+    query_context.queries = [
+        QueryObject(
+            metrics=["count"],
+            columns=["name"],
+            orderby=[(tampered_metric, False)],
+        ),
+    ]
+    assert query_context_modified(query_context)
+
+
+def test_query_context_modified_sorting_by_metric_allowed(
+    mocker: MockerFixture,
+) -> None:
+    """
+    Test that sorting by a metric already in the chart is allowed for guest users.
+    """
+    query_context = mocker.MagicMock()
+    query_context.slice_.id = 42
+    query_context.slice_.query_context = None
+    query_context.slice_.params_dict = {
+        "metrics": ["count"],
+        "columns": ["name", "gender"],
+        "groupby": ["name", "gender"],
+    }
+
+    query_context.form_data = {
+        "slice_id": 42,
+        "metrics": ["count"],
+        "columns": ["name", "gender"],
+        "orderby": [["count", False]],
+    }
+    query_context.queries = [
+        QueryObject(
+            metrics=["count"],
+            columns=["name", "gender"],
+            orderby=[("count", False)],
+        ),
+    ]
+    assert not query_context_modified(query_context)
+
+
+def test_query_context_modified_sorting_with_stored_query_context(
+    mocker: MockerFixture,
+) -> None:
+    """
+    Test that sorting is allowed when the column is in the stored query_context.
+    """
+    query_context = mocker.MagicMock()
+    query_context.slice_.id = 42
+    query_context.slice_.params_dict = {
+        "metrics": ["count"],
+        "columns": ["name"],
+    }
+    query_context.slice_.query_context = json.dumps(
+        {
+            "queries": [
+                {
+                    "columns": ["name", "gender"],
+                    "metrics": ["count"],
+                    "groupby": [],
+                }
+            ],
+        }
+    )
+
+    query_context.form_data = {
+        "slice_id": 42,
+        "metrics": ["count"],
+        "columns": ["name"],
+        "orderby": [["gender", True]],
+    }
+    query_context.queries = [
+        QueryObject(
+            metrics=["count"],
+            columns=["name"],
+            orderby=[("gender", True)],
+        ),
+    ]
+    assert not query_context_modified(query_context)
+
+
+def test_query_context_modified_sorting_all_columns(
+    mocker: MockerFixture,
+) -> None:
+    """
+    Test that sorting by a column in all_columns (raw query mode) is allowed.
+    """
+    query_context = mocker.MagicMock()
+    query_context.slice_.id = 42
+    query_context.slice_.query_context = None
+    query_context.slice_.params_dict = {
+        "metrics": [],
+        "all_columns": ["name", "gender", "state"],
+    }
+
+    query_context.form_data = {
+        "slice_id": 42,
+        "metrics": [],
+        "orderby": [["state", True]],
+    }
+    query_context.queries = [
+        QueryObject(
+            metrics=[],
+            orderby=[("state", True)],
+        ),
+    ]
+    assert not query_context_modified(query_context)
+
+
 def test_get_catalog_perm() -> None:
     """
     Test the `get_catalog_perm` method.
