@@ -251,7 +251,7 @@ test('parseErrorJson with HTML message', () => {
     }),
   ).toEqual({
     message: '<div>error message</div>',
-    error: 'Unknown error',
+    error: '<div>error message</div>',
   });
   expect(
     parseErrorJson({
@@ -259,7 +259,7 @@ test('parseErrorJson with HTML message', () => {
     }),
   ).toEqual({
     message: '<div>Server error</div>',
-    error: 'Server error',
+    error: '<div>Server error</div>',
   });
 });
 
@@ -272,7 +272,7 @@ test('parseErrorJson with HTML message and status code', () => {
   ).toEqual({
     status: 502,
     message: '<div>error message</div>',
-    error: 'Bad gateway',
+    error: '<div>error message</div>',
   });
   expect(
     parseErrorJson({
@@ -282,8 +282,29 @@ test('parseErrorJson with HTML message and status code', () => {
   ).toEqual({
     status: 999,
     message: '<div>Server error</div>',
-    error: 'Server error',
+    error: '<div>Server error</div>',
   });
+});
+
+test('parseErrorJson preserves error messages containing HTML-like SQL syntax', () => {
+  const sqlError =
+    'Syntax error: failed at position 37: <a> AS "My column" FROM table';
+  expect(parseErrorJson({ status: 400, message: sqlError })).toMatchObject({
+    error: sqlError,
+    message: sqlError,
+  });
+});
+
+test('getClientErrorObject preserves JSON error messages with HTML-like content', async () => {
+  const sqlError = 'Syntax error: <a> AS "col" is not valid SQL';
+  const jsonBody = JSON.stringify({ message: sqlError });
+  const response = new Response(jsonBody, {
+    status: 400,
+    statusText: 'Bad Request',
+  });
+  const result = await getClientErrorObject(response);
+  expect(result.error).toEqual(sqlError);
+  expect(result.message).toEqual(sqlError);
 });
 
 test('parseErrorJson with stacktrace', () => {

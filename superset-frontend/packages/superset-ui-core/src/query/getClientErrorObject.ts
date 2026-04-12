@@ -135,11 +135,7 @@ export function parseErrorJson(responseJson: JsonObject): ClientErrorObject {
         t('Invalid input');
     }
     if (typeof error.message === 'string') {
-      if (checkForHtml(error.message)) {
-        error.error = retrieveErrorMessage(error.message, error);
-      } else {
-        error.error = error.message;
-      }
+      error.error = error.message;
     }
   }
   if (error.stack) {
