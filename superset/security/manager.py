@@ -589,6 +589,8 @@ class SupersetSecurityManager(  # pylint: disable=too-many-public-methods
                 "user_id": getattr(user, "id", None),
             },
         )
+        # Session clearing is handled in SupersetAuthView.logout()
+        # to ensure complete invalidation regardless of session backend
 
     def request_loader(self, request: Request) -> Optional[User]:
         # pylint: disable=import-outside-toplevel

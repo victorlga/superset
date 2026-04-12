@@ -2232,10 +2232,19 @@ TALISMAN_DEV_CONFIG = {
 # See https://flask.palletsprojects.com/en/1.1.x/security/#set-cookie-options
 # for details
 #
+# SESSION_COOKIE_HTTPONLY prevents JavaScript from accessing the session cookie,
+# which is critical for mitigating XSS-based cookie theft. Keep this enabled.
 SESSION_COOKIE_HTTPONLY = True  # Prevent cookie from being read by frontend JS?
+# SESSION_COOKIE_SECURE should be set to True in production deployments to
+# ensure session cookies are only transmitted over HTTPS/TLS connections.
 SESSION_COOKIE_SECURE = False  # Prevent cookie from being transmitted over non-tls?
 SESSION_COOKIE_SAMESITE: Literal["None", "Lax", "Strict"] | None = "Lax"
-# Whether to use server side sessions from flask-session or Flask secure cookies
+# Whether to use server side sessions from flask-session or Flask secure cookies.
+# For production deployments, enabling server-side sessions is recommended.
+# Client-side session cookies are stateless and inherently vulnerable to replay
+# attacks if a cookie is captured before logout. Server-side sessions (backed by
+# Redis, a database, etc.) store state on the server, allowing complete session
+# invalidation on logout and eliminating the replay window.
 SESSION_SERVER_SIDE = False
 # Example config using Redis as the backend for server side sessions
 # from flask_session import RedisSessionInterface

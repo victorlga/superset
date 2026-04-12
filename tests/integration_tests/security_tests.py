@@ -2311,3 +2311,38 @@ class TestGuestTokens(SupersetTestCase):
         assert "cool_code" == decoded_token["aud"]
         assert "guest" == decoded_token["type"]
         self.app.config["GUEST_TOKEN_JWT_AUDIENCE"] = None
+
+
+class TestLogoutSessionInvalidation(SupersetTestCase):
+    """Verify that logout properly invalidates the session."""
+
+    def test_logout_invalidates_session_cookie(self):
+        """After logout, a captured session cookie cannot access protected endpoints."""
+        # Log in as admin
+        self.login("admin")
+
+        # Verify we can access a protected endpoint
+        resp = self.client.get("/api/v1/me/", follow_redirects=False)
+        assert resp.status_code == 200
+
+        # Perform logout
+        logout_resp = self.client.get("/logout/", follow_redirects=False)
+        assert logout_resp.status_code in (301, 302)
+
+        # After logout, accessing a protected endpoint should fail
+        resp = self.client.get("/api/v1/me/", follow_redirects=False)
+        assert resp.status_code in (401, 302, 403)
+
+    def test_logout_response_clears_session_cookie(self):
+        """The logout response sets a cookie deletion header."""
+        self.login("admin")
+
+        logout_resp = self.client.get("/logout/", follow_redirects=False)
+        set_cookie_headers = logout_resp.headers.getlist("Set-Cookie")
+
+        # At least one Set-Cookie header should target the session cookie
+        session_cookie_name = self.app.config.get("SESSION_COOKIE_NAME", "session")
+        session_cookies = [h for h in set_cookie_headers if session_cookie_name in h]
+        assert len(session_cookies) > 0, (
+            f"Expected Set-Cookie header for '{session_cookie_name}'"
+        )

@@ -18,12 +18,13 @@
 import logging
 from typing import Optional
 
-from flask import g, redirect
+from flask import g, redirect, session
 from flask_appbuilder import expose
 from flask_appbuilder.const import LOGMSG_ERR_SEC_NO_REGISTER_HASH
 from flask_appbuilder.security.decorators import no_cache
 from flask_appbuilder.security.views import AuthView, WerkzeugResponse
 from flask_babel import lazy_gettext
+from flask_login import logout_user
 
 from superset.views.base import BaseSupersetView
 
@@ -40,6 +41,27 @@ class SupersetAuthView(BaseSupersetView, AuthView):
             return redirect(self.appbuilder.get_url_for_index)
 
         return super().render_app_template()
+
+    @expose("/logout/")
+    @no_cache
+    def logout(self) -> WerkzeugResponse:
+        if (user := self._get_authenticated_user()) is not None:
+            logout_user()
+            self.appbuilder.sm.on_user_logout(user)
+        else:
+            logout_user()
+        session.clear()
+        response = redirect(
+            self.appbuilder.app.config.get(
+                "LOGOUT_REDIRECT_URL", self.appbuilder.get_url_for_index
+            )
+        )
+        response.delete_cookie(
+            self.appbuilder.app.config.get("SESSION_COOKIE_NAME", "session"),
+            path=self.appbuilder.app.config.get("SESSION_COOKIE_PATH", "/"),
+            domain=self.appbuilder.app.config.get("SESSION_COOKIE_DOMAIN"),
+        )
+        return response
 
 
 class SupersetRegisterUserView(BaseSupersetView):
