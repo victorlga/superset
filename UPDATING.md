@@ -24,6 +24,10 @@ assists people when migrating to a new version.
 
 ## Next
 
+### Public UI registration decoupled from LDAP/OAuth auto-registration
+
+The new `AUTH_USER_SELF_REGISTRATION` config flag (default: `False`) exclusively controls public UI registration (login page Register button, `/register/` endpoint, "User Registrations" admin menu). `AUTH_USER_REGISTRATION` no longer controls the UI registration form — it only governs LDAP/OAuth/SAML auto-registration of authenticated users. If you rely on the public registration form, set `AUTH_USER_SELF_REGISTRATION = True` in your `superset_config.py`.
+
 ### Deck.gl MapBox viewport and opacity controls are functional
 
 The Deck.gl MapBox chart's **Opacity**, **Default longitude**, **Default latitude**, and **Zoom** controls were previously non-functional — changing them had no effect on the rendered map. These controls are now wired up correctly.

@@ -92,6 +92,8 @@ class SupersetRegisterUserView(BaseSupersetView):
         is sent to the user by email, when accessed the user is inserted
         and activated
         """
+        if not current_app.config.get("AUTH_USER_SELF_REGISTRATION", False):
+            return redirect(self.appbuilder.get_url_for_index)
         reg = self.appbuilder.sm.find_register_user(activation_hash)
         if not reg:
             logger.error(LOGMSG_ERR_SEC_NO_REGISTER_HASH, activation_hash)
