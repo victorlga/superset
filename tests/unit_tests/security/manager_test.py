@@ -1045,6 +1045,211 @@ def test_query_context_modified_orderby(mocker: MockerFixture) -> None:
     assert query_context_modified(query_context)
 
 
+def test_query_context_modified_orderby_sort_by_column(mocker: MockerFixture) -> None:
+    """
+    Test that sorting by an existing chart column is allowed for guest users.
+
+    When a guest user clicks a column header to sort in an embedded dashboard,
+    the frontend sends an orderby with the column name. This should NOT be
+    flagged as a modified payload since the column is already part of the chart.
+    """
+    query_context = mocker.MagicMock()
+    query_context.queries = [
+        QueryObject(
+            columns=["gender"],
+            metrics=["count"],
+            orderby=[("gender", True)],
+        ),
+    ]
+    query_context.form_data = {
+        "slice_id": 101,
+        "query_mode": "aggregate",
+        "groupby": ["gender"],
+        "metrics": ["count"],
+    }
+    query_context.slice_.id = 101
+    query_context.slice_.params_dict = {
+        "groupby": ["gender"],
+        "metrics": ["count"],
+    }
+    query_context.slice_.query_context = json.dumps(
+        {
+            "queries": [
+                {
+                    "columns": ["gender"],
+                    "metrics": ["count"],
+                    "orderby": [],
+                }
+            ],
+        }
+    )
+    assert not query_context_modified(query_context)
+
+
+def test_query_context_modified_orderby_sort_by_metric(mocker: MockerFixture) -> None:
+    """
+    Test that sorting by an existing chart metric is allowed for guest users.
+
+    Sorting by a metric (e.g., "count") only changes result ordering and should
+    not be treated as payload tampering.
+    """
+    query_context = mocker.MagicMock()
+    query_context.queries = [
+        QueryObject(
+            columns=["gender"],
+            metrics=["count"],
+            orderby=[("count", False)],
+        ),
+    ]
+    query_context.form_data = {
+        "slice_id": 101,
+        "query_mode": "aggregate",
+        "groupby": ["gender"],
+        "metrics": ["count"],
+    }
+    query_context.slice_.id = 101
+    query_context.slice_.params_dict = {
+        "groupby": ["gender"],
+        "metrics": ["count"],
+    }
+    query_context.slice_.query_context = json.dumps(
+        {
+            "queries": [
+                {
+                    "columns": ["gender"],
+                    "metrics": ["count"],
+                    "orderby": [],
+                }
+            ],
+        }
+    )
+    assert not query_context_modified(query_context)
+
+
+def test_query_context_modified_orderby_sort_by_adhoc_metric(
+    mocker: MockerFixture,
+) -> None:
+    """
+    Test that sorting by an existing adhoc metric is allowed for guest users.
+
+    Adhoc metrics are represented as dicts and should be compared by value.
+    """
+    adhoc_metric: AdhocMetric = {
+        "aggregate": "AVG",
+        "column": {"column_name": "num", "type": "BIGINT(20)"},
+        "expressionType": "SIMPLE",
+        "label": "AVG(num)",
+    }
+
+    query_context = mocker.MagicMock()
+    query_context.queries = [
+        QueryObject(
+            columns=["gender"],
+            metrics=[adhoc_metric],
+            orderby=[(adhoc_metric, False)],
+        ),
+    ]
+    query_context.form_data = {
+        "slice_id": 101,
+        "metrics": [adhoc_metric],
+        "groupby": ["gender"],
+    }
+    query_context.slice_.id = 101
+    query_context.slice_.params_dict = {
+        "groupby": ["gender"],
+        "metrics": [adhoc_metric],
+    }
+    query_context.slice_.query_context = json.dumps(
+        {
+            "queries": [
+                {
+                    "columns": ["gender"],
+                    "metrics": [adhoc_metric],
+                    "orderby": [],
+                }
+            ],
+        }
+    )
+    assert not query_context_modified(query_context)
+
+
+def test_query_context_modified_orderby_unknown_column(
+    mocker: MockerFixture,
+) -> None:
+    """
+    Test that sorting by a column not in the chart is blocked.
+
+    Even though sorting only changes ordering, we block references to unknown
+    columns/expressions to prevent SQL injection.
+    """
+    query_context = mocker.MagicMock()
+    query_context.queries = [
+        QueryObject(
+            columns=["gender"],
+            metrics=["count"],
+            orderby=[("unknown_column", True)],
+        ),
+    ]
+    query_context.form_data = {
+        "slice_id": 101,
+        "groupby": ["gender"],
+        "metrics": ["count"],
+    }
+    query_context.slice_.id = 101
+    query_context.slice_.params_dict = {
+        "groupby": ["gender"],
+        "metrics": ["count"],
+    }
+    query_context.slice_.query_context = json.dumps(
+        {
+            "queries": [
+                {
+                    "columns": ["gender"],
+                    "metrics": ["count"],
+                    "orderby": [],
+                }
+            ],
+        }
+    )
+    assert query_context_modified(query_context)
+
+
+def test_query_context_modified_orderby_empty(mocker: MockerFixture) -> None:
+    """
+    Test that an empty orderby is allowed (no sorting applied).
+    """
+    query_context = mocker.MagicMock()
+    query_context.queries = [
+        QueryObject(
+            columns=["gender"],
+            metrics=["count"],
+            orderby=[],
+        ),
+    ]
+    query_context.form_data = {
+        "slice_id": 101,
+        "groupby": ["gender"],
+        "metrics": ["count"],
+    }
+    query_context.slice_.id = 101
+    query_context.slice_.params_dict = {
+        "groupby": ["gender"],
+        "metrics": ["count"],
+    }
+    query_context.slice_.query_context = json.dumps(
+        {
+            "queries": [
+                {
+                    "columns": ["gender"],
+                    "metrics": ["count"],
+                    "orderby": [],
+                }
+            ],
+        }
+    )
+    assert not query_context_modified(query_context)
+
+
 def test_get_catalog_perm() -> None:
     """
     Test the `get_catalog_perm` method.

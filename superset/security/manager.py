@@ -282,6 +282,60 @@ def freeze_value(value: Any) -> str:
     return json.dumps(value, sort_keys=True)
 
 
+def _collect_allowed_orderby_identifiers(
+    stored_chart: "Slice",
+    stored_query_context: dict[str, Any] | None,
+) -> set[str]:
+    """
+    Collect all column names and metric labels/definitions that the stored chart
+    uses, so they can be treated as valid sort targets for guest users.
+
+    This gathers identifiers from params_dict (columns, groupby, metrics, all_columns)
+    and from the stored query_context queries (columns, groupby, metrics).
+    """
+    allowed: set[str] = set()
+    params = stored_chart.params_dict
+
+    for key in ("columns", "groupby", "metrics", "all_columns"):
+        for value in params.get(key) or []:
+            allowed.add(freeze_value(value))
+
+    if stored_query_context:
+        for query in stored_query_context.get("queries") or []:
+            for key in ("columns", "groupby", "metrics"):
+                for value in query.get(key) or []:
+                    allowed.add(freeze_value(value))
+
+    return allowed
+
+
+def _orderby_is_valid(
+    query_context: "QueryContext",
+    stored_chart: "Slice",
+    stored_query_context: dict[str, Any] | None,
+) -> bool:
+    """
+    Validate that all orderby entries in the query context reference columns or
+    metrics that exist in the stored chart.
+
+    Sorting only changes result ordering, not what data is accessed. However, we
+    still block orderby entries that reference columns/metrics not present in the
+    stored chart to prevent SQL injection (e.g., ``random()``).
+    """
+    allowed = _collect_allowed_orderby_identifiers(stored_chart, stored_query_context)
+
+    for query in query_context.queries:
+        for orderby_entry in query.orderby or []:
+            # orderby entries are tuples of (column_or_metric, ascending_bool)
+            if not isinstance(orderby_entry, (list, tuple)) or len(orderby_entry) < 2:
+                return False
+            column_or_metric = orderby_entry[0]
+            if freeze_value(column_or_metric) not in allowed:
+                return False
+
+    return True
+
+
 def query_context_modified(query_context: "QueryContext") -> bool:
     """
     Check if a query context has been modified.
@@ -307,11 +361,12 @@ def query_context_modified(query_context: "QueryContext") -> bool:
     )
 
     # compare columns and metrics in form_data with stored values
+    # Note: orderby is handled separately below to allow guest users to sort
+    # by existing chart columns/metrics without triggering a false positive.
     for key, equivalent in [
         ("metrics", ["metrics"]),
         ("columns", ["columns", "groupby"]),
         ("groupby", ["columns", "groupby"]),
-        ("orderby", ["orderby"]),
     ]:
         requested_values = {freeze_value(value) for value in form_data.get(key) or []}
         stored_values = {
@@ -328,13 +383,19 @@ def query_context_modified(query_context: "QueryContext") -> bool:
         }
         if stored_query_context:
             for query in stored_query_context.get("queries") or []:
-                for key in equivalent:
+                for equiv_key in equivalent:
                     stored_values.update(
-                        {freeze_value(value) for value in query.get(key) or []}
+                        {freeze_value(value) for value in query.get(equiv_key) or []}
                     )
 
         if not queries_values.issubset(stored_values):
             return True
+
+    # Validate orderby separately: allow sorting by any column or metric that
+    # exists in the stored chart, but block references to unknown expressions
+    # (e.g., random()) that could be used for SQL injection.
+    if not _orderby_is_valid(query_context, stored_chart, stored_query_context):
+        return True
 
     return False
 
