@@ -170,8 +170,11 @@ configOverrides: {}
   #   # Map Authlib roles to superset roles
   #   AUTH_ROLE_ADMIN = 'Admin'
   #   AUTH_ROLE_PUBLIC = 'Public'
-  #   # Will allow user self registration, allowing to create Flask users from Authorized User
+  #   # Will allow syncing of new users from LDAP/OAuth/SAML providers
   #   AUTH_USER_REGISTRATION = True
+  #   # Optionally enable public self-registration via the login page UI
+  #   # (disabled by default for security — only enable if you want anyone to register)
+  #   # AUTH_USER_SELF_REGISTRATION = True
   #   # The default user self registration role
   #   AUTH_USER_REGISTRATION_ROLE = "Admin"
   # secret: |

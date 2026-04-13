@@ -44,7 +44,7 @@ def test_bootstrap_saml_providers(app_context: None) -> None:
     from flask import current_app
 
     current_app.config["AUTH_TYPE"] = AUTH_SAML
-    current_app.config["AUTH_USER_REGISTRATION"] = False
+    current_app.config["AUTH_USER_SELF_REGISTRATION"] = False
     current_app.config["SAML_PROVIDERS"] = [
         {"name": "okta", "icon": "fa-okta"},
         {"name": "entra_id", "icon": "fa-microsoft"},
@@ -64,7 +64,7 @@ def test_bootstrap_saml_provider_default_icon(app_context: None) -> None:
     from flask import current_app
 
     current_app.config["AUTH_TYPE"] = AUTH_SAML
-    current_app.config["AUTH_USER_REGISTRATION"] = False
+    current_app.config["AUTH_USER_SELF_REGISTRATION"] = False
     current_app.config["SAML_PROVIDERS"] = [
         {"name": "onelogin"},
     ]
@@ -80,7 +80,7 @@ def test_bootstrap_oauth_providers(app_context: None) -> None:
     from flask import current_app
 
     current_app.config["AUTH_TYPE"] = AUTH_OAUTH
-    current_app.config["AUTH_USER_REGISTRATION"] = False
+    current_app.config["AUTH_USER_SELF_REGISTRATION"] = False
     current_app.config["OAUTH_PROVIDERS"] = [
         {"name": "github", "icon": "fa-github"},
     ]
@@ -105,7 +105,7 @@ def test_recaptcha_not_shown_for_federated_auth(
     from flask import current_app
 
     current_app.config["AUTH_TYPE"] = auth_type
-    current_app.config["AUTH_USER_REGISTRATION"] = True
+    current_app.config["AUTH_USER_SELF_REGISTRATION"] = True
     current_app.config["AUTH_USER_REGISTRATION_ROLE"] = "Public"
     current_app.config.pop("RECAPTCHA_PUBLIC_KEY", None)
 
@@ -126,10 +126,83 @@ def test_recaptcha_shown_for_non_federated_auth(
     from flask import current_app
 
     current_app.config["AUTH_TYPE"] = auth_type
-    current_app.config["AUTH_USER_REGISTRATION"] = True
+    current_app.config["AUTH_USER_SELF_REGISTRATION"] = True
     current_app.config["AUTH_USER_REGISTRATION_ROLE"] = "Public"
     current_app.config["RECAPTCHA_PUBLIC_KEY"] = "test-key"
 
     payload = _get_bootstrap()
 
     assert payload["conf"]["RECAPTCHA_PUBLIC_KEY"] == "test-key"
+
+
+def test_self_registration_disabled_by_default_with_auth_registration_on(
+    app_context: None,
+) -> None:
+    """When AUTH_USER_REGISTRATION=True but AUTH_USER_SELF_REGISTRATION is not set,
+    bootstrap data should NOT expose registration to the frontend."""
+    from flask import current_app
+
+    current_app.config["AUTH_TYPE"] = AUTH_DB
+    current_app.config["AUTH_USER_REGISTRATION"] = True
+    current_app.config.pop("AUTH_USER_SELF_REGISTRATION", None)
+
+    payload = _get_bootstrap()
+
+    assert payload["conf"]["AUTH_USER_REGISTRATION"] is False
+    assert "AUTH_USER_REGISTRATION_ROLE" not in payload["conf"]
+
+
+def test_self_registration_enabled_exposes_registration(
+    app_context: None,
+) -> None:
+    """When AUTH_USER_SELF_REGISTRATION=True, bootstrap data should expose
+    registration to the frontend."""
+    from flask import current_app
+
+    current_app.config["AUTH_TYPE"] = AUTH_DB
+    current_app.config["AUTH_USER_SELF_REGISTRATION"] = True
+    current_app.config["AUTH_USER_REGISTRATION_ROLE"] = "Public"
+
+    payload = _get_bootstrap()
+
+    assert payload["conf"]["AUTH_USER_REGISTRATION"] is True
+    assert payload["conf"]["AUTH_USER_REGISTRATION_ROLE"] == "Public"
+
+
+def test_self_registration_false_hides_registration(
+    app_context: None,
+) -> None:
+    """When AUTH_USER_SELF_REGISTRATION=False, bootstrap data should NOT expose
+    registration to the frontend, even with AUTH_USER_REGISTRATION=True."""
+    from flask import current_app
+
+    current_app.config["AUTH_TYPE"] = AUTH_DB
+    current_app.config["AUTH_USER_REGISTRATION"] = True
+    current_app.config["AUTH_USER_SELF_REGISTRATION"] = False
+
+    payload = _get_bootstrap()
+
+    assert payload["conf"]["AUTH_USER_REGISTRATION"] is False
+    assert "AUTH_USER_REGISTRATION_ROLE" not in payload["conf"]
+
+
+@pytest.mark.parametrize(
+    "auth_type",
+    [AUTH_OAUTH, AUTH_SAML],
+)
+def test_federated_auth_with_self_registration_off(
+    app_context: None,
+    auth_type: int,
+) -> None:
+    """Federated auth (OAuth/SAML) with AUTH_USER_REGISTRATION=True but
+    AUTH_USER_SELF_REGISTRATION=False should not expose registration UI."""
+    from flask import current_app
+
+    current_app.config["AUTH_TYPE"] = auth_type
+    current_app.config["AUTH_USER_REGISTRATION"] = True
+    current_app.config["AUTH_USER_SELF_REGISTRATION"] = False
+
+    payload = _get_bootstrap()
+
+    assert payload["conf"]["AUTH_USER_REGISTRATION"] is False
+    assert "RECAPTCHA_PUBLIC_KEY" not in payload["conf"]

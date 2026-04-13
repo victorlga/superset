@@ -3299,7 +3299,9 @@ class SupersetSecurityManager(  # pylint: disable=too-many-public-methods
 
         if self.register_superset_auth_view:
             self.auth_view = self.appbuilder.add_view_no_menu(SupersetAuthView)
-        if self.register_superset_registeruser_view:
+        if self.register_superset_registeruser_view and current_app.config.get(
+            "AUTH_USER_SELF_REGISTRATION", False
+        ):
             self.registeruser_view = self.appbuilder.add_view_no_menu(
                 SupersetRegisterUserView
             )

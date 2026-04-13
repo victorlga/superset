@@ -348,7 +348,9 @@ class SupersetAppInitializer:  # pylint: disable=too-many-public-methods
             label=_("User Registrations"),
             category="Security",
             category_label=_("Security"),
-            menu_cond=lambda: bool(appbuilder.app.config["AUTH_USER_REGISTRATION"]),
+            menu_cond=lambda: bool(
+                appbuilder.app.config.get("AUTH_USER_SELF_REGISTRATION", False)
+            ),
         )
 
         appbuilder.add_view(
