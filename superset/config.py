@@ -389,8 +389,14 @@ AUTH_TYPE = AUTH_DB
 # Uncomment to setup Public role name, no authentication needed
 # AUTH_ROLE_PUBLIC = 'Public'
 
-# Will allow user self registration
+# Will allow user self registration (LDAP/OAuth/SAML auto-registration of
+# authenticated users). This is required for federated auth to work.
 # AUTH_USER_REGISTRATION = True
+
+# Will allow user self registration via the UI (registration form on login page).
+# This is separate from AUTH_USER_REGISTRATION which controls
+# LDAP/OAuth/SAML auto-registration of authenticated users.
+# AUTH_USER_SELF_REGISTRATION = False
 
 # The default user self registration role
 # AUTH_USER_REGISTRATION_ROLE = "Public"
