@@ -283,7 +283,7 @@ def freeze_value(value: Any) -> str:
 
 
 def _collect_allowed_orderby_identifiers(
-    stored_chart: Any,
+    stored_chart: "Slice",
     stored_query_context: dict[str, Any] | None,
 ) -> set[str]:
     """
@@ -311,7 +311,7 @@ def _collect_allowed_orderby_identifiers(
 
 def _orderby_is_valid(
     query_context: "QueryContext",
-    stored_chart: Any,
+    stored_chart: "Slice",
     stored_query_context: dict[str, Any] | None,
 ) -> bool:
     """
@@ -325,7 +325,7 @@ def _orderby_is_valid(
     allowed = _collect_allowed_orderby_identifiers(stored_chart, stored_query_context)
 
     for query in query_context.queries:
-        for orderby_entry in getattr(query, "orderby", None) or []:
+        for orderby_entry in query.orderby or []:
             # orderby entries are tuples of (column_or_metric, ascending_bool)
             if not isinstance(orderby_entry, (list, tuple)) or len(orderby_entry) < 2:
                 return False
