@@ -86,3 +86,23 @@ test('shows loading spinner for client-side errors without errors array when dat
   expect(screen.getByRole('status')).toBeInTheDocument();
   expect(screen.queryByText(/Some client-side error/)).not.toBeInTheDocument();
 });
+
+test('renders meaningful error text instead of "Bad request" when error message contains HTML-like SQL', () => {
+  const htmlLikeMessage =
+    "Syntax error at position 37 ('<'): <a> AS `My column`";
+  render(
+    <Chart
+      {...baseProps}
+      chartStatus="failed"
+      chartAlert={htmlLikeMessage}
+      queriesResponse={[{}]}
+    />,
+  );
+
+  // The HTML tag <a> should be stripped but the surrounding text preserved
+  expect(
+    screen.getByText(/Syntax error at position 37/),
+  ).toBeInTheDocument();
+  // Should NOT show "Bad request" as the error
+  expect(screen.queryByText('Bad request')).not.toBeInTheDocument();
+});

@@ -25,6 +25,7 @@ import {
   ErrorTypeEnum,
   isProbablyHTML,
   isJsonString,
+  removeHTMLTags,
 } from '@superset-ui/core';
 
 // The response always contains an error attribute, can contain anything from
@@ -136,7 +137,9 @@ export function parseErrorJson(responseJson: JsonObject): ClientErrorObject {
     }
     if (typeof error.message === 'string') {
       if (checkForHtml(error.message)) {
-        error.error = retrieveErrorMessage(error.message, error);
+        const strippedMessage = removeHTMLTags(error.message).trim();
+        error.error =
+          strippedMessage || retrieveErrorMessage(error.message, error);
       } else {
         error.error = error.message;
       }

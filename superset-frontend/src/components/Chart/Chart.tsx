@@ -27,6 +27,8 @@ import {
   SqlaFormData,
   ClientErrorObject,
   DataRecordFilters,
+  isProbablyHTML,
+  removeHTMLTags,
   type FilterState,
   type JsonObject,
   type AgGridChartState,
@@ -268,7 +270,11 @@ class Chart extends PureComponent<ChartProps, {}> {
       datasetsStatus,
     } = this.props;
     const error = queryResponse?.errors?.[0];
-    const message = chartAlert || queryResponse?.message;
+    const rawMessage = chartAlert || queryResponse?.message;
+    const message =
+      typeof rawMessage === 'string' && isProbablyHTML(rawMessage)
+        ? removeHTMLTags(rawMessage)
+        : rawMessage;
 
     // if datasource is still loading, don't render JS errors
     // but always show backend API errors (which have an errors array)

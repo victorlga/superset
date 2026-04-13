@@ -244,14 +244,14 @@ test('parseErrorJson with message', () => {
   });
 });
 
-test('parseErrorJson with HTML message', () => {
+test('parseErrorJson with HTML message strips tags and preserves text', () => {
   expect(
     parseErrorJson({
       message: '<div>error message</div>',
     }),
   ).toEqual({
     message: '<div>error message</div>',
-    error: 'Unknown error',
+    error: 'error message',
   });
   expect(
     parseErrorJson({
@@ -263,7 +263,7 @@ test('parseErrorJson with HTML message', () => {
   });
 });
 
-test('parseErrorJson with HTML message and status code', () => {
+test('parseErrorJson with HTML message and status code strips tags', () => {
   expect(
     parseErrorJson({
       status: 502,
@@ -272,7 +272,7 @@ test('parseErrorJson with HTML message and status code', () => {
   ).toEqual({
     status: 502,
     message: '<div>error message</div>',
-    error: 'Bad gateway',
+    error: 'error message',
   });
   expect(
     parseErrorJson({
@@ -284,6 +284,44 @@ test('parseErrorJson with HTML message and status code', () => {
     message: '<div>Server error</div>',
     error: 'Server error',
   });
+});
+
+test('parseErrorJson strips HTML from message but preserves text content for SQL errors', () => {
+  expect(
+    parseErrorJson({
+      status: 400,
+      message: "Syntax error at position 37 ('<'): <a> AS `My column`",
+    }),
+  ).toEqual({
+    status: 400,
+    message: "Syntax error at position 37 ('<'): <a> AS `My column`",
+    error: "Syntax error at position 37 ('<'):  AS `My column`",
+  });
+});
+
+test('parseErrorJson falls back to status code for empty HTML message', () => {
+  expect(
+    parseErrorJson({
+      status: 400,
+      message: '<div></div>',
+    }),
+  ).toEqual({
+    status: 400,
+    message: '<div></div>',
+    error: 'Bad request',
+  });
+});
+
+test('parseErrorJson passes through message with script tags when not detected as HTML', () => {
+  // DOMParser does not create element nodes for <script> in body,
+  // so isProbablyHTML returns false and the message is used as-is.
+  // React's default escaping prevents XSS at the rendering layer.
+  const result = parseErrorJson({
+    message: '<script>alert("xss")</script>Real error message',
+  });
+  expect(result.error).toBe(
+    '<script>alert("xss")</script>Real error message',
+  );
 });
 
 test('parseErrorJson with stacktrace', () => {
