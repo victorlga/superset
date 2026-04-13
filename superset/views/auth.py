@@ -60,9 +60,11 @@ class SupersetAuthView(BaseSupersetView, AuthView):
         """
         # Capture user reference before logout clears it
         user = g.user
-        # Clear all session data to prevent cookie replay
-        session.clear()
+        # logout_user() first so flask-login's user_logged_out signal
+        # fires with the real user rather than an anonymous user
         logout_user()
+        # Destroy remaining session data to prevent cookie replay
+        session.clear()
         # Preserve audit logging
         self.appbuilder.sm.on_user_logout(user)
         return redirect(self.appbuilder.get_url_for_index)

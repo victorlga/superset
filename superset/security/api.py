@@ -109,8 +109,10 @@ class SecurityRestApi(BaseSupersetApi):
 
     @expose("/logout/", methods=("POST",))
     @event_logger.log_this
+    @protect()
     @safe
     @statsd_metrics
+    @permission_name("logout")
     def logout(self) -> Response:
         """Logout the user and invalidate the session.
         ---
@@ -135,8 +137,8 @@ class SecurityRestApi(BaseSupersetApi):
               $ref: '#/components/responses/401'
         """
         user = g.user
-        session.clear()
         logout_user()
+        session.clear()
         self.appbuilder.sm.on_user_logout(user)
         return self.response(200, message="OK")
 

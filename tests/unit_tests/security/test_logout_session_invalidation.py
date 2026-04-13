@@ -56,6 +56,9 @@ def _login_user(app: SupersetApp, client: FlaskClient) -> User:
     return user
 
 
+# --- View-based logout tests (/logout/) ---
+
+
 def test_view_logout_invalidates_session(
     app: SupersetApp,
     client: FlaskClient,
@@ -63,34 +66,11 @@ def test_view_logout_invalidates_session(
     """After calling the view logout, the old session cookie is rejected."""
     _login_user(app, client)
 
-    # Verify the session has user data
     with client.session_transaction() as sess:
         assert "_user_id" in sess
 
-    # Perform logout via the view endpoint
     client.get("/logout/", follow_redirects=True)
 
-    # Session should be cleared after logout
-    with client.session_transaction() as sess:
-        assert "_user_id" not in sess
-
-
-def test_api_logout_invalidates_session(
-    app: SupersetApp,
-    client: FlaskClient,
-) -> None:
-    """After calling POST /api/v1/security/logout, the session is invalid."""
-    _login_user(app, client)
-
-    # Verify the session has user data
-    with client.session_transaction() as sess:
-        assert "_user_id" in sess
-
-    # Perform logout via the REST API
-    resp = client.post("/api/v1/security/logout/")
-    assert resp.status_code == 200
-
-    # Session should be cleared after logout
     with client.session_transaction() as sess:
         assert "_user_id" not in sess
 
@@ -113,9 +93,44 @@ def test_view_logout_calls_on_user_logout(
     mock_on_logout.assert_called_once()
 
 
+def test_view_logout_returns_redirect(
+    app: SupersetApp,
+    client: FlaskClient,
+) -> None:
+    """The view logout redirects to the index page."""
+    _login_user(app, client)
+
+    resp = client.get("/logout/")
+    assert resp.status_code == 302
+
+
+# --- API logout tests (POST /api/v1/security/logout) ---
+# The API endpoint uses @protect(), so full_api_access is needed to
+# bypass FAB's JWT / permission checks in the unit-test environment.
+
+
+def test_api_logout_invalidates_session(
+    app: SupersetApp,
+    client: FlaskClient,
+    full_api_access: None,
+) -> None:
+    """After calling POST /api/v1/security/logout, the session is invalid."""
+    _login_user(app, client)
+
+    with client.session_transaction() as sess:
+        assert "_user_id" in sess
+
+    resp = client.post("/api/v1/security/logout/")
+    assert resp.status_code == 200
+
+    with client.session_transaction() as sess:
+        assert "_user_id" not in sess
+
+
 def test_api_logout_calls_on_user_logout(
     app: SupersetApp,
     client: FlaskClient,
+    full_api_access: None,
     mocker: MockerFixture,
 ) -> None:
     """The API logout triggers the security manager's audit callback."""
@@ -131,20 +146,10 @@ def test_api_logout_calls_on_user_logout(
     mock_on_logout.assert_called_once()
 
 
-def test_view_logout_returns_redirect(
-    app: SupersetApp,
-    client: FlaskClient,
-) -> None:
-    """The view logout redirects to the index page."""
-    _login_user(app, client)
-
-    resp = client.get("/logout/")
-    assert resp.status_code == 302
-
-
 def test_api_logout_returns_200(
     app: SupersetApp,
     client: FlaskClient,
+    full_api_access: None,
 ) -> None:
     """The API logout returns a 200 JSON response."""
     _login_user(app, client)
